@@ -16,4 +16,6 @@ Static, browser-only chess drill app (GitHub Pages, no build step). See README f
   new cards with `DrillApp.update()`, which must not disturb the card in play.
 - Test locally with `python -m http.server` and Playwright (Chromium is preinstalled in Claude cloud
   sessions). Mock api.github.com / api.anthropic.com with `page.route` rather than using real keys.
+- Analytics: `app/analytics.js` calls GoatCounter's /count endpoint (no script). Its host must be in the
+  CSP's connect-src and img-src. Never send usernames, games, keys or other user input as paths or events.
 - Licence is GPL-3.0 (ships Stockfish.js).

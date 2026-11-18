@@ -9,6 +9,7 @@ import { buildGameCards, openingDecks, openingUsage, facts } from "./build.js";
 import { store } from "./store.js";
 import { GistSync, mergeProgress } from "./sync.js";
 import { makeExplainer, PROVIDERS } from "./explain.js";
+import { count } from "./analytics.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -179,13 +180,13 @@ function renderSetup(msg = "") {
   drop.ondragleave = () => drop.classList.remove("on");
   drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("on"); takeFiles(e.dataTransfer.files); };
   $("havesync").onclick = () => openSettings("sync");
-  $("skip").onclick = async () => { S.started = true; await saveSettings(); await showDrills(); openPicker(true); };
+  $("skip").onclick = async () => { count("openings-only", { event: true }); S.started = true; await saveSettings(); await showDrills(); openPicker(true); };
   $("go").onclick = async () => {
     S.players.chesscom = $("u-cc").value.trim(); S.players.lichess = $("u-li").value.trim();
     if ($("pgnme")) S.players.pgnNames = [$("pgnme").value];
     S.count = +$("cnt").value; S.quality = $("qual").value;
     if (!S.players.chesscom && !S.players.lichess && !pgnTexts.length) { $("pgninfo").textContent = "Enter a username or add a PGN file first, or choose “Just drill openings”."; return; }
-    S.started = true; await saveSettings();
+    S.started = true; await saveSettings(); count("start-with-games", { event: true });
     const names = [S.players.chesscom, S.players.lichess, ...S.players.pgnNames].filter(Boolean);
     if (pgnTexts.length) await addPending(pgnTexts.map((p) => fromPgn(p, names)).filter(Boolean));
     await showDrills(); openPicker(true);
@@ -237,7 +238,7 @@ async function runJob({ fetch = false } = {}) {
   } catch (e) { console.error(e); toast("Analysis stopped: " + e.message); }
   job.running = false; renderPill();
   if (gameData) window.DrillApp.update(await compose());
-  if (!job.paused && gameData) { setStatus(`Done: ${gameData.cards.length} cards from your last ${gameData.games} games.`); pushDecks(); }
+  if (!job.paused && gameData) { count("cards-built", { event: true }); setStatus(`Done: ${gameData.cards.length} cards from your last ${gameData.games} games.`); pushDecks(); }
 }
 async function rebuildCards(analysed, cache, q, final = false) {
   const before = new Set(gameData ? gameData.cards.map((c) => c.id) : []);
@@ -312,7 +313,7 @@ function openSettings(tab = "") {
     $("s-syncmsg").textContent = "Connecting…";
     const r = await startSync();
     if (!syncer || !S.sync.gistId) { $("s-syncmsg").textContent = "That didn't work. Check the token's Gists permission."; return; }
-    $("s-syncmsg").textContent = "Sync is on.";
+    $("s-syncmsg").textContent = "Sync is on."; count("sync-on", { event: true });
     if (gameData || S.openings) { if (!r || !r.decks || r.decks.v !== 2) await pushDecks(); progress = await syncer.pushProgress(progress); await store.set("progress", progress); }
     if (gameData || S.openings) { S.started = true; await saveSettings(); d.close(); await showDrills(); }
   };
@@ -340,6 +341,7 @@ function openSettings(tab = "") {
 
 // ---------------- boot ----------------
 (async () => {
+  count();
   await loadOpenings("data/openings.tsv");
   REP = await (await fetch("data/repertoire.json")).json();
   await loadState();

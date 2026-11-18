@@ -36,6 +36,10 @@ There is no server. Games, analysis, cards and progress stay in your browser (In
 - Tokens and keys are stored only in your browser and sent only to GitHub or your AI provider.
   The page's Content Security Policy allows no other hosts and no third-party scripts.
 - **Backup**: Settings → Export backup / Import backup.
+- **Visitor counts**: page views and a few anonymous events (pressed Start, chose openings only,
+  finished building cards, turned on sync) are counted with [GoatCounter](https://www.goatcounter.com):
+  no cookies, no usernames, games or keys. Nothing is sent with Do Not Track on. The counter is
+  `app/analytics.js` (no third-party script).
 
 ## Running it
 
