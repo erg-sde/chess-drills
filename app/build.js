@@ -74,125 +74,148 @@ async function extendForced(ck, fen, sol, white, maxUser = 4) {
   return out;
 }
 
-/** mined: output of mine(); games: analysed games (for repertoire "faced" counts); rep: repertoire.json.
- *  opts: {depth, perDeck, onProgress(done, total, label), since: "since August" text} */
-export async function buildDecks(engine, mined, games, rep, { depth = 14, perDeck = 40, onProgress, sinceText = "" } = {}) {
+// ---- one candidate -> card (or null). Pure functions of the position, so results are cached. ----
+async function openingCard(ck, o) {
+  const white = o.color === "white", fen = o.fen;
+  const ls = await ck.lines(fen, 4); if (!ls.length) return null;
+  const s0 = pov(ls[0].cp, white);
+  const accept = ls.slice(1).filter((l) => s0 - pov(l.cp, white) <= 30).map((l) => l.pv[0]);
+  const after = {}; for (const [m] of o.played) after[m] = pov(await ck.scoreAfter(fen, m), white);
+  const bad = o.played.filter(([m]) => m !== ls[0].pv[0] && !accept.includes(m) && s0 - after[m] >= 60 && after[m] < 100);
+  if (!bad.length) return null;
+  const key = o.setup.length, best = ls[0].pv[0], worst = bad[0][0], we = white ? after[worst] : -after[worst];
+  const playedTxt = o.played.map(([m, n]) => `${m} (${n}x)`).join(", ");
+  return {
+    id: "op-" + cid(o.key), deck: "openings", kind: "line", orient: white ? "w" : "b",
+    title: `${white ? "White" : "Black"}: ${openingName(o.setup)[1] || "Opening"}, move ${Math.floor(key / 2) + 1}`,
+    sub: `Reached ${o.count}x, scored ${Math.round(o.score * 100)}%. Your ${worst} (${bad[0][1]}x) gives ${fmtEval(we)}; ${best} keeps ${fmtEval(ls[0].cp)}.`,
+    moves: [...o.setup, best], from: 0, key, prompt: `Watch the last few moves, then find ${white ? "White" : "Black"}'s move.`,
+    accept: {}, soft: Object.fromEntries(accept.map((m) => [m, `${m} is fine too (within 0.3). This card drills ${best}.`])),
+    played: worst, keyNote: `You reached this ${o.count} times and scored ${Math.round(o.score * 100)}%. You played ${playedTxt}. Stockfish prefers ${best} (${fmtEval(ls[0].cp)}); ${worst} gives ${fmtEval(we)}.`,
+    wrong: { [worst]: `That's your usual move here. Stockfish rates it ${fmtEval(we)}; ${best} keeps ${fmtEval(ls[0].cp)}.` },
+    notes: {}, nags: { [key]: "!" }, summary: `Line: ${sanLine(START, [...o.setup, best])}.`,
+  };
+}
+
+function tacticDeck(t) {
+  return t.role === "punish" || t.type === "missed_win" || t.type === "missed_mate" ? "finish"
+    : t.type === "hung" ? "safety" : t.type === "allowed_mate" ? "defend" : null;
+}
+
+async function tacticCard(ck, t) {
+  const white = t.color === "white", fen = t.fen, played = t.played, deck = tacticDeck(t);
+  let sol, ev, accept = [];
+  if (deck === "finish") {
+    const r = await puzzleSolution(ck, fen, white, t.type === "missed_mate" || Math.abs(t.eval_before) >= MATE - 200);
+    if (!r) return null; [sol, ev] = r;
+  } else {
+    const r = await safeMoves(ck, fen, white, played); if (!r) return null; [sol, accept, ev] = r;
+    if (pov(ev, white) < -200) return null; // still lost after the best defence: a poor drill
+    sol = await extendForced(ck, fen, sol, white);
+  }
+  if (!sol || !sol.length) return null;
+  const first = sol[0], mi = mateIn(ev);
+  let reason;
+  if (mi) reason = `Mate in ${mi}: ${sanLine(fen, sol)}.`;
+  else {
+    const cap = describeCapture(fen, first), forks = forkTargets(fen, first);
+    if (deck === "finish" && cap) reason = `${first} takes ${cap}` + (forks.length ? ` and hits the ${forks[0]}` : "") + ".";
+    else if (deck === "finish" && forks.length >= 2) reason = `${first} attacks the ${forks[0]} and the ${forks[1]} at once.`;
+    else if (deck === "finish") reason = `${sanLine(fen, sol)} wins material.`;
+    else if (deck === "defend" && sol.length > 1) reason = `${sanLine(fen, sol)}: every move is forced until the threat is gone. Then you're at ${fmtEval(ev)}.`;
+    else if (deck === "defend") reason = `${first} stops it` + (accept.length ? ` (also fine: ${accept.join(", ")})` : "") + ".";
+    else reason = `${first} keeps everything protected` + (accept.length ? ` (also fine: ${accept.join(", ")})` : "") + ".";
+  }
+  const bb = new Chess(fen); bb.move(played, { sloppy: true }); const fenAfter = bb.fen();
+  let refut = legalPrefix(fenAfter, t.refutation.slice(0, 4));
+  if (!refut.length && !bb.game_over()) { const l = await ck.lines(fenAfter, 1); refut = l.length ? legalPrefix(fenAfter, l[0].pv.slice(0, 4)) : []; }
+  let whyPlayed = "";
+  if (deck === "finish") whyPlayed = `In the game you played ${played} and the chance was gone.`;
+  else if (refut.length) {
+    const rcap = describeCapture(fenAfter, refut[0]);
+    whyPlayed = deck === "defend" ? `After ${played}, ${sanLine(fenAfter, refut)} and the mate is coming.`
+      : rcap ? `After ${played}, ${refut[0]} takes ${rcap.replace("the ", "your ")}.` : `After ${played}, ${sanLine(fenAfter, refut.slice(0, 3))}.`;
+  }
+  const side = white ? "White" : "Black", key = t.setup.length;
+  const notes = { [key]: reason }; for (let j = 2; j < sol.length; j += 2) notes[key + j] = "Still the only good move: the threat isn't over yet.";
+  return {
+    id: "tx-" + cid(t.url, t.ply), deck, kind: "puzzle", orient: white ? "w" : "b",
+    title: { finish: mi ? `${side} to play: mate in ${mi}` : `${side} to play and win`, safety: `${side} to play: don't drop material`, defend: `${side} to play: stop the mate` }[deck],
+    sub: `${t.date} vs ${t.opponent} · ${t.opening || "game"} · move ${Math.floor(t.ply / 2) + 1}`,
+    moves: [...t.setup, ...sol], from: key, key,
+    prompt: { finish: t.role === "punish" ? "Your opponent just went wrong. Find the winning move." : "There's a win here. Find it.",
+      safety: `Find a safe move. In the game, ${played} lost material.`, defend: `Danger. In the game, ${played} walked into a mate. Find the defence.` }[deck],
+    accept: accept.length ? { [key]: accept } : {}, soft: {}, played, keyNote: `${whyPlayed} ${reason}`.trim(),
+    wrong: { [played]: `That's what you played in the game. ${whyPlayed}` }, notes, nags: { [key]: "!" },
+    summary: `${reason} ${whyPlayed}`.trim(), game: { url: t.url, date: t.date, opp: t.opponent, result: t.result },
+  };
+}
+
+/** Cards from the player's own games. `cache` (a plain object the caller persists) maps each candidate
+ *  to its checked card or null, so a new batch of games only costs engine time for new candidates.
+ *  opts: {depth, perDeck, cache, onProgress(done, total, label), shouldStop()} */
+export async function buildGameCards(engine, mined, { depth = 14, perDeck = 60, cache = {}, onProgress, shouldStop } = {}) {
   const ck = new Checker(engine, depth), cards = [];
-  const tick = (() => { let d = 0; const total = mined.openings.length + Math.min(mined.tactics.length, perDeck * 6);
-    return (label) => onProgress && onProgress(++d, total, label); })();
+  const sig = (o) => `op|${o.key}|${o.count}|${o.played.map((x) => x.join(":")).join(",")}`;
+  const tacts = [...mined.tactics].filter((t) => tacticDeck(t) && !(t.clock != null && t.clock < 8)).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const todo = mined.openings.filter((o) => !(sig(o) in cache)).length + tacts.filter((t) => !(`tx|${t.url}|${t.ply}` in cache)).length;
+  let done = 0; const tick = (label) => onProgress && onProgress(++done, todo, label);
 
-  // ---- opening repair ----
   for (const o of mined.openings) {
-    tick("Opening positions");
-    const white = o.color === "white", fen = o.fen;
-    const ls = await ck.lines(fen, 4); if (!ls.length) continue;
-    const s0 = pov(ls[0].cp, white);
-    const accept = ls.slice(1).filter((l) => s0 - pov(l.cp, white) <= 30).map((l) => l.pv[0]);
-    const after = {}; for (const [m] of o.played) after[m] = pov(await ck.scoreAfter(fen, m), white);
-    const bad = o.played.filter(([m]) => m !== ls[0].pv[0] && !accept.includes(m) && s0 - after[m] >= 60 && after[m] < 100);
-    if (!bad.length) continue;
-    const key = o.setup.length, best = ls[0].pv[0], worst = bad[0][0], we = white ? after[worst] : -after[worst];
-    const playedTxt = o.played.map(([m, n]) => `${m} (${n}x)`).join(", ");
-    cards.push({
-      id: "op-" + cid(o.key), deck: "openings", kind: "line", orient: white ? "w" : "b",
-      title: `${white ? "White" : "Black"}: ${openingName(o.setup)[1] || "Opening"}, move ${Math.floor(key / 2) + 1}`,
-      sub: `Reached ${o.count}x, scored ${Math.round(o.score * 100)}%. Your ${worst} (${bad[0][1]}x) gives ${fmtEval(we)}; ${best} keeps ${fmtEval(ls[0].cp)}.`,
-      moves: [...o.setup, best], from: 0, key, prompt: `Watch the last few moves, then find ${white ? "White" : "Black"}'s move.`,
-      accept: {}, soft: Object.fromEntries(accept.map((m) => [m, `${m} is fine too (within 0.3). This card drills ${best}.`])),
-      played: worst, keyNote: `You reached this ${o.count} times and scored ${Math.round(o.score * 100)}%. You played ${playedTxt}. Stockfish prefers ${best} (${fmtEval(ls[0].cp)}); ${worst} gives ${fmtEval(we)}.`,
-      wrong: { [worst]: `That's your usual move here. Stockfish rates it ${fmtEval(we)}; ${best} keeps ${fmtEval(ls[0].cp)}.` },
-      notes: {}, nags: { [key]: "!" }, summary: `Line: ${sanLine(START, [...o.setup, best])}.`, _score: o.weight * o.avg_loss,
-    });
+    const k = sig(o);
+    if (!(k in cache)) { if (shouldStop && shouldStop()) break; tick("Opening positions"); cache[k] = await openingCard(ck, o); }
+    if (cache[k]) cards.push({ ...cache[k], _score: o.weight * o.avg_loss });
   }
-
-  // ---- tactics: newest games first, each deck filled to perDeck ----
   const seen = new Set(), count = (d) => cards.filter((c) => c.deck === d).length;
-  for (const t of [...mined.tactics].sort((a, b) => (a.date < b.date ? 1 : -1))) {
-    const white = t.color === "white", fen = t.fen, played = t.played, k = posKey(fen);
-    if (seen.has(k)) continue;
-    const deck = t.role === "punish" || t.type === "missed_win" || t.type === "missed_mate" ? "finish"
-      : t.type === "hung" ? "safety" : t.type === "allowed_mate" ? "defend" : null;
-    if (!deck || count(deck) >= perDeck) continue;
-    if (t.clock != null && t.clock < 8) continue;
-    if (["finish", "safety", "defend"].every((d) => count(d) >= perDeck)) break;
-    tick("Puzzles from your games");
-    let sol, ev, accept = [];
-    if (deck === "finish") {
-      const r = await puzzleSolution(ck, fen, white, t.type === "missed_mate" || Math.abs(t.eval_before) >= MATE - 200);
-      if (!r) continue; [sol, ev] = r;
-    } else {
-      const r = await safeMoves(ck, fen, white, played); if (!r) continue; [sol, accept, ev] = r;
-      if (pov(ev, white) < -200) continue;
-      sol = await extendForced(ck, fen, sol, white);
-    }
-    if (!sol || !sol.length) continue;
-    seen.add(k);
-    const first = sol[0], mi = mateIn(ev);
-    let reason;
-    if (mi) reason = `Mate in ${mi}: ${sanLine(fen, sol)}.`;
-    else {
-      const cap = describeCapture(fen, first), forks = forkTargets(fen, first);
-      if (deck === "finish" && cap) reason = `${first} takes ${cap}` + (forks.length ? ` and hits the ${forks[0]}` : "") + ".";
-      else if (deck === "finish" && forks.length >= 2) reason = `${first} attacks the ${forks[0]} and the ${forks[1]} at once.`;
-      else if (deck === "finish") reason = `${sanLine(fen, sol)} wins material.`;
-      else if (deck === "defend" && sol.length > 1) reason = `${sanLine(fen, sol)}: every move is forced until the threat is gone. Then you're at ${fmtEval(ev)}.`;
-      else if (deck === "defend") reason = `${first} stops it` + (accept.length ? ` (also fine: ${accept.join(", ")})` : "") + ".";
-      else reason = `${first} keeps everything protected` + (accept.length ? ` (also fine: ${accept.join(", ")})` : "") + ".";
-    }
-    const bb = new Chess(fen); bb.move(played, { sloppy: true }); const fenAfter = bb.fen();
-    let refut = legalPrefix(fenAfter, t.refutation.slice(0, 4));
-    if (!refut.length && !bb.game_over()) { const l = await ck.lines(fenAfter, 1); refut = l.length ? legalPrefix(fenAfter, l[0].pv.slice(0, 4)) : []; }
-    let whyPlayed = "";
-    if (deck === "finish") whyPlayed = `In the game you played ${played} and the chance was gone.`;
-    else if (refut.length) {
-      const rcap = describeCapture(fenAfter, refut[0]);
-      whyPlayed = deck === "defend" ? `After ${played}, ${sanLine(fenAfter, refut)} and the mate is coming.`
-        : rcap ? `After ${played}, ${refut[0]} takes ${rcap.replace("the ", "your ")}.` : `After ${played}, ${sanLine(fenAfter, refut.slice(0, 3))}.`;
-    }
-    const side = white ? "White" : "Black", key = t.setup.length;
-    const notes = { [key]: reason }; for (let j = 2; j < sol.length; j += 2) notes[key + j] = "Still the only good move: the threat isn't over yet.";
-    cards.push({
-      id: "tx-" + cid(t.url, t.ply), deck, kind: "puzzle", orient: white ? "w" : "b",
-      title: { finish: mi ? `${side} to play: mate in ${mi}` : `${side} to play and win`, safety: `${side} to play: don't drop material`, defend: `${side} to play: stop the mate` }[deck],
-      sub: `${t.date} vs ${t.opponent} · ${t.opening || "game"} · move ${Math.floor(t.ply / 2) + 1}`,
-      moves: [...t.setup, ...sol], from: key, key,
-      prompt: { finish: t.role === "punish" ? "Your opponent just went wrong. Find the winning move." : "There's a win here. Find it.",
-        safety: `Find a safe move. In the game, ${played} lost material.`, defend: `Danger. In the game, ${played} walked into a mate. Find the defence.` }[deck],
-      accept: accept.length ? { [key]: accept } : {}, soft: {}, played, keyNote: `${whyPlayed} ${reason}`.trim(),
-      wrong: { [played]: `That's what you played in the game. ${whyPlayed}` }, notes, nags: { [key]: "!" },
-      summary: `${reason} ${whyPlayed}`.trim(), game: { url: t.url, date: t.date, opp: t.opponent, result: t.result },
-    });
+  for (const t of tacts) {
+    const deck = tacticDeck(t), pk = posKey(t.fen), k = `tx|${t.url}|${t.ply}`;
+    if (seen.has(pk) || count(deck) >= perDeck) continue;
+    if (!(k in cache)) { if (shouldStop && shouldStop()) break; tick("Puzzles from your games"); cache[k] = await tacticCard(ck, t); }
+    if (cache[k]) { seen.add(pk); cards.push(cache[k]); }
   }
-
-  // ---- trim, opening decks from repertoire.json ----
   let out = [];
   for (const d of DECKS) {
-    let cs = cards.filter((c) => c.deck === d.id);
+    const cs = cards.filter((c) => c.deck === d.id);
     if (d.id === "openings") cs.sort((a, b) => b._score - a._score);
     out = out.concat(cs.slice(0, perDeck));
   }
-  out.forEach((c) => delete c._score);
-  const repDecks = [];
+  out = out.map(({ _score, ...c }) => c).filter((c) => { const g = new Chess(); return c.moves.every((s) => g.move(s, { sloppy: true })); });
+  return { decks: DECKS.filter((d) => out.some((c) => c.deck === d.id)), cards: out };
+}
+
+/** Opening library decks (no engine needed). `games` (analysed) only adds "faced" counts and ordering. */
+export function openingDecks(rep, games = [], selected = null) {
+  const decks = [], cards = [];
   for (const d of (rep && rep.decks) || []) {
+    if (selected && !selected.includes(d.id)) continue;
     const opp = d.color === "white" ? "Black" : "White", orient = d.color === "white" ? "w" : "b";
     const seqs = games.filter((g) => g.color === d.color).map((g) => g.plies.map((p) => p.san));
     const cs = d.lines.map((ln) => {
-      const mv = ln.moves.split(" "), br = ln.branch;
+      const mv = ln.moves.split(" "), br = ln.branch, ns = ln.notes || {};
       const faced = seqs.filter((s) => mv.slice(0, br + 1).every((x, i) => s[i] === x)).length;
-      const ns = ln.notes || {};
       return { id: d.id + "-" + cid(ln.moves), deck: d.id, kind: "line", orient, title: `${d.name.split(" (")[0]}: ${ln.name}`,
-        sub: faced ? `${opp} has chosen ${mv[br]} against you ${faced}x${sinceText ? " " + sinceText : ""}.` : `No one has played ${mv[br]} against you yet.`,
+        sub: faced ? `${opp} has chosen ${mv[br]} against you ${faced}x in your analysed games.` : (seqs.length ? `Not in your analysed games yet.` : ``),
         moves: mv, from: 0, key: br + 1, prompt: "Watch the moves leading in, then play your side to the end of the line.",
         notes: ns, nags: {}, accept: {}, soft: {},
         keyNote: (`${ln.name}. ` + Object.entries(ns).filter(([i]) => +i > br && (+i % 2) === ((br + 1) % 2)).sort((a, b) => a[0] - b[0]).map(([, v]) => v).join(" ")).slice(0, 400),
         summary: `Line: ${sanLine(START, mv)}.`, _faced: faced };
     }).sort((a, b) => b._faced - a._faced);
-    // Only offer a deck for an opening the player actually reaches as that colour.
-    if (cs.some((c) => c._faced)) { repDecks.push({ id: d.id, name: d.name, blurb: d.blurb }); out = out.concat(cs.map(({ _faced, ...c }) => c)); }
+    decks.push({ id: d.id, name: d.name, blurb: d.blurb, faced: cs.reduce((a, c) => a + c._faced, 0) });
+    cards.push(...cs.map(({ _faced, ...c }) => c));
   }
-  // Validate every line.
-  out = out.filter((c) => { const g = new Chess(); return c.moves.every((s) => g.move(s, { sloppy: true })); });
-  return { decks: DECKS.filter((d) => out.some((c) => c.deck === d.id)).concat(repDecks), cards: out };
+  return { decks, cards };
+}
+
+/** How often the player reaches each library deck as its colour (for suggestions). */
+export function openingUsage(rep, games) {
+  const out = {};
+  for (const d of (rep && rep.decks) || []) {
+    // Match on the player's own moves in the first 6 plies (London: 1.d4 and 2.Bf4 whatever Black plays).
+    const mine = (i) => (i % 2 === 0) === (d.color === "white");
+    const pats = d.lines.map((l) => l.moves.split(" ").slice(0, 6).map((x, i) => (mine(i) ? [i, x] : null)).filter(Boolean));
+    out[d.id] = games.filter((g) => g.color === d.color && pats.some((p) => p.every(([i, x]) => g.plies[i] && g.plies[i].san === x))).length;
+  }
+  return out;
 }
 
 /** Facts for the "What your games say" panel. */

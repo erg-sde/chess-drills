@@ -1,0 +1,57 @@
+"""Opening library: deck id -> (name, colour, blurb, [(line name, SAN moves, branch)]). branch = index of the opponent's defining move."""
+D = {
+"rep-italian": ("Italian Game (White)", "white", "1.e4 e5 2.Nf3 Nc6 3.Bc4: the Giuoco Piano, Two Knights and Black's odd third moves.", [
+ ("Giuoco Piano: c3 and d4", "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4 exd4 cxd4 Bb4+ Bd2 Bxd2+ Nbxd2 d5 exd5 Nxd5 Qb3", 5),
+ ("Giuoco Pianissimo: slow build-up", "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O O-O Re1 a6 Bb3 Ba7 h3", 5),
+ ("Two Knights: 4.d3 main line", "e4 e5 Nf3 Nc6 Bc4 Nf6 d3 Be7 O-O O-O Re1 d6 c3 Na5 Bb5 a6 Ba4 b5 Bc2", 5),
+ ("Two Knights: 4.Ng5 d5 5.exd5 Na5", "e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Na5 Bb5+ c6 dxc6 bxc6 Be2 h6 Nf3 e4 Ne5", 7),
+ ("Two Knights: 5...Nxd5?! (Fried Liver territory)", "e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Nxd5 d4", 9),
+ ("Hungarian Defense 3...Be7", "e4 e5 Nf3 Nc6 Bc4 Be7 d4 d6 d5 Nb8 Nc3", 5),
+ ("3...d6 (passive)", "e4 e5 Nf3 Nc6 Bc4 d6 d4 exd4 Nxd4 Nf6 Nc3 Be7 O-O O-O", 5),
+]),
+"rep-vs-italian": ("1...e5 vs the Italian (Black)", "black", "Black's answers to 1.e4 e5 2.Nf3 Nc6 3.Bc4 and its cousins: the lines you face most as Black.", [
+ ("Giuoco Piano: 4.c3 Nf6 5.d4", "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4 exd4 cxd4 Bb4+ Bd2 Bxd2+ Nbxd2 d5 exd5 Nxd5", 6),
+ ("Giuoco Pianissimo: 4.d3", "e4 e5 Nf3 Nc6 Bc4 Bc5 d3 Nf6 O-O d6 c3 O-O h3 a6", 6),
+ ("4.O-O", "e4 e5 Nf3 Nc6 Bc4 Bc5 O-O Nf6 d3 d6 c3 O-O", 6),
+ ("4.Ng5?? hangs the knight", "e4 e5 Nf3 Nc6 Bc4 Bc5 Ng5 Qxg5", 6),
+ ("Four Knights Italian: the fork trick", "e4 e5 Nf3 Nc6 Nc3 Nf6 Bc4 Nxe4 Nxe4 d5 Bd3 dxe4 Bxe4 Bd6", 6),
+ ("Scotch Gambit 4.d4", "e4 e5 Nf3 Nc6 Bc4 Bc5 d4 Bxd4 Nxd4 Nxd4 O-O d6", 6),
+ ("Bishop's Opening 2.Bc4", "e4 e5 Bc4 Nf6 d3 c6 Nf3 d5 Bb3 Bd6", 2),
+]),
+"rep-sicilian": ("Sicilian Defense (Black)", "black", "1.e4 c5 with ...d6 and ...Nf6: the Najdorf setup plus answers to White's anti-Sicilians.", [
+ ("Open Sicilian: Najdorf 6.Be2", "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be2 e5 Nb3 Be7 O-O O-O", 10),
+ ("Open Sicilian: Najdorf 6.Bg5", "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6 f4 Be7 Qf3 Qc7", 10),
+ ("Moscow 3.Bb5+", "e4 c5 Nf3 d6 Bb5+ Bd7 Bxd7+ Qxd7 O-O Nc6 c3 Nf6 Re1 e6", 4),
+ ("Alapin 2.c3", "e4 c5 c3 Nf6 e5 Nd5 d4 cxd4 cxd4 d6 Nf3 Nc6", 2),
+ ("Grand Prix 2.Nc3 and f4", "e4 c5 Nc3 d6 f4 Nc6 Nf3 g6 Bb5 Bd7 O-O Bg7", 2),
+ ("Smith-Morra Gambit 2.d4", "e4 c5 d4 cxd4 c3 dxc3 Nxc3 Nc6 Nf3 d6 Bc4 e6 O-O Nf6", 2),
+]),
+"rep-caro": ("Caro-Kann Defense (Black)", "black", "1.e4 c6 2.d4 d5: the Advance, Classical, Exchange and Panov.", [
+ ("Advance: 3.e5 Bf5 4.Nf3", "e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2 c5 O-O Nc6", 4),
+ ("Advance: 4.Nc3 e6 5.g4", "e4 c6 d4 d5 e5 Bf5 Nc3 e6 g4 Bg6 Nge2 c5", 4),
+ ("Classical: 3.Nc3 dxe4 4.Nxe4 Bf5", "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7", 4),
+ ("Exchange: 3.exd5", "e4 c6 d4 d5 exd5 cxd5 Bd3 Nc6 c3 Nf6 Bf4 Bg4", 4),
+ ("Panov: 3.exd5 cxd5 4.c4", "e4 c6 d4 d5 exd5 cxd5 c4 Nf6 Nc3 e6 Nf3 Be7", 6),
+ ("Two Knights: 2.Nc3 d5 3.Nf3", "e4 c6 Nc3 d5 Nf3 Bg4 h3 Bxf3 Qxf3 e6", 2),
+]),
+"rep-qg": ("Queen's Gambit (White)", "white", "1.d4 d5 2.c4: the Declined, Accepted, Slav and Albin.", [
+ ("Queen's Gambit Declined", "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 h6 Bh4", 3),
+ ("Queen's Gambit Accepted", "d4 d5 c4 dxc4 Nf3 Nf6 e3 e6 Bxc4 c5 O-O a6", 3),
+ ("Slav Defense", "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4 a4 Bf5 e3 e6 Bxc4", 3),
+ ("Albin Countergambit", "d4 d5 c4 e5 dxe5 d4 Nf3 Nc6 g3 Bg4 Bg2 Qd7 O-O", 3),
+ ("Chigorin 2...Nc6", "d4 d5 c4 Nc6 Nf3 Bg4 cxd5 Bxf3 gxf3 Qxd5 e3 e5 Nc3", 3),
+]),
+"rep-london": ("London System (White)", "white", "1.d4 and 2.Bf4 against Black's main setups.", [
+ ("vs ...d5, ...e6, ...c5", "d4 d5 Bf4 Nf6 e3 e6 Nf3 c5 c3 Nc6 Nbd2 Bd6 Bg3 O-O Bd3", 1),
+ ("vs ...d5 and ...Bf5", "d4 d5 Bf4 Nf6 e3 Bf5 c4 e6 Nc3 c6 Qb3 Qb6 c5", 1),
+ ("vs the King's Indian setup", "d4 Nf6 Bf4 g6 e3 Bg7 Nf3 O-O Be2 d6 h3 c5 c3", 1),
+ ("vs early ...c5", "d4 Nf6 Bf4 c5 c3 Qb6 Qb3 cxd4 Qxb6 axb6 cxd4 Nc6 e3", 3),
+]),
+"rep-vs-scandi": ("vs the Scandinavian (White)", "white", "1.e4 d5: punish the early queen and play against ...Nf6 lines.", [
+ ("2...Qxd5 3.Nc3 Qa5", "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3 c6 Bc4 Bf5 Bd2 e6 Qe2", 5),
+ ("2...Qxd5 3.Nc3 Qd6", "e4 d5 exd5 Qxd5 Nc3 Qd6 d4 Nf6 Nf3 a6 g3 Bg4 Bg2", 5),
+ ("2...Qxd5 3.Nc3 Qd8", "e4 d5 exd5 Qxd5 Nc3 Qd8 d4 Nf6 Nf3 Bg4 h3 Bxf3 Qxf3", 5),
+ ("2...Nf6 3.d4 Nxd5", "e4 d5 exd5 Nf6 d4 Nxd5 Nf3 Bg4 Be2 e6 O-O Be7 c4 Nb6", 3),
+ ("3...Nxd5 4.Nxd5 Qxd5 (the line you play)", "e4 d5 exd5 Nf6 Nc3 Nxd5 Nxd5 Qxd5 d4 Nc6 Be3 e5 Nf3", 3),
+]),
+}

@@ -370,6 +370,8 @@ function renderStats() {
   b.onclick = () => { load(c, "study"); window.scrollTo({ top: 0, behavior: "smooth" }); }; });
 }
 function renderFacts() {
+ const has = DATA.facts && DATA.facts.length; $("factsh").hidden = $("facts").hidden = $("method").hidden = !has;
+ if (!has) { $("hsub").textContent = DATA.subtitle || ""; return; }
  $("facts").innerHTML = DATA.facts.map(() => '<div class="fact"><b></b><span></span></div>').join("");
  [...$("facts").children].forEach((el, i) => { el.querySelector("b").textContent = DATA.facts[i][0]; el.querySelector("span").textContent = DATA.facts[i][1]; });
  $("method").textContent = DATA.method;
@@ -393,6 +395,18 @@ window.DrillApp = {
  setProgress(p) { P = p; store.set("drill-progress", JSON.stringify(P)); if (DATA) { renderDecks(); renderList(); } },
  setStatus(t) { $("status").textContent = t; },
  setExplain(fn) { sampleFn = fn || null; $("explain").hidden = !sampleFn; },
+ /** New or rebuilt cards arrived (background analysis): refresh shelves without touching the card in play. */
+ update(d) {
+  DATA = d; CARDS = d.cards.filter((c) => { const g = new Chess(); return c.moves.every((s) => g.move(s, { sloppy: true })); });
+  BY = {}; CARDS.forEach((c) => (BY[c.id] = c));
+  if (deck !== "all" && !d.decks.some((x) => x.id === deck)) deck = "all";
+  if (card && BY[card.id]) card = Object.assign(BY[card.id], { playedMove: card.playedMove });
+  renderFacts(); renderDecks(); renderList();
+  if (!card) startSession();
+ },
+ /** Switch deck and start a session there (used by the opening picker and "drill new cards"). */
+ selectDeck(id) { deck = id; store.set("drill-deck", deck); renderDecks(); renderList(); startSession(); window.scrollTo({ top: 0, behavior: "smooth" }); },
+ currentDeck() { return deck; },
 };
 if (typeof Chess === "undefined") { $("cmeta").innerHTML = '<span class="err">The chess library didn\'t load. Reload the page.</span>'; }
 }

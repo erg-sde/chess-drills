@@ -118,13 +118,27 @@ dialog{border:1px solid var(--line);border-radius:12px;padding:0;max-width:640px
 dialog::backdrop{background:rgba(0,0,0,.45)}
 .dlg{padding:20px;display:grid;gap:16px}.dlg h2{font:800 1.3rem var(--f-d);margin:0}.dlg h3{margin:6px 0 0;font:800 1.02rem var(--f-d)}
 .ok{color:var(--good)}.warn{color:var(--bad)}
+.jobpill{order:2;display:flex;align-items:center;gap:10px;font-size:.88rem;margin-left:12px}
+.picker{border:2px solid var(--field);border-radius:12px;padding:18px;margin:0 0 22px;display:grid;gap:14px;background:var(--panel)}
+.picker h2{font:800 1.35rem/1.15 var(--f-d);margin:0}
+.pk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.pk{display:grid;gap:4px;text-align:left;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--bg);min-height:44px}
+.pk.on{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink)}
+.pk b{font:800 1.02rem var(--f-d)}.pk-sub{font-size:.85rem;color:var(--muted)}.pk-n{font:600 .8rem var(--f-m)}
+.pk-side{justify-self:start;font:600 .75rem var(--f-m);padding:1px 8px;border-radius:999px;border:1px solid var(--ink)}
+.pk-side.black{background:var(--ink);color:var(--bg)}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:20;display:flex;gap:10px;align-items:center;max-width:calc(100% - 24px);
+ background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 12px 10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.toast .btn{background:transparent;color:var(--bg);border-color:rgba(255,255,255,.4)}.toast .btn.pri{background:var(--bg);color:var(--ink)}
+@media(max-width:600px){.jobpill{order:3;width:100%;margin-left:0}}
 </style>
 </head>
 <body>
-<header><div class="in"><h1>Drill your games</h1><button class="hbtn" id="opensettings" hidden>Settings</button><div class="sub" id="hsub" hidden>Positions and lines from your own chess.com games, on spaced repetition.</div></div></header>
+<header><div class="in"><h1>Drill your games</h1><button class="hbtn" id="openpicker" hidden>Openings</button><button class="hbtn" id="opensettings" hidden>Settings</button><div class="sub" id="hsub" hidden>Positions and lines from your own chess.com games, on spaced repetition.</div></div></header>
 <section class="setup" id="setup" hidden></section>
 <dialog id="settings"></dialog>
 <main id="drillmain" hidden>
+ <section class="picker" id="picker" hidden></section>
  <div class="study">
   <div class="bcol">
    <div class="bwrap"><div class="board" id="board" aria-label="Chess board"></div><svg class="arrows" id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg></div>
@@ -178,7 +192,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
  <div><h4>By deck</h4><div class="rows" id="pdecks"></div></div></div>
  <h4>Most-missed cards</h4><div class="list" id="pmiss"></div>
 
- <h3>What your games say</h3>
+ <h3 id="factsh">What your games say</h3>
  <div class="facts" id="facts"></div>
  <p class="why" id="method"></p>
 </main>

@@ -2,16 +2,23 @@
 
 Spaced-repetition drills built from **your own games**, entirely in your browser.
 
-Enter a chess.com or lichess username (or upload PGN files). Stockfish 19 runs in the page,
-goes through your recent games, finds the mistakes you keep making, and turns them into cards:
+Enter a chess.com or lichess username (or upload PGN files) and start drilling straight away.
+While Stockfish 19 works through your recent games in the background, **10 at a time, newest first**,
+you pick openings to drill from the built-in library. Cards from your own games appear as each batch
+finishes (a pop-up tells you), so there's no loading screen to stare at. Close the tab and it carries
+on where it stopped next time.
+
+**Opening library** (every line engine-checked): Italian Game and Ruy Lopez as White, 1...e5 against
+the Italian as Black, Sicilian and Caro-Kann as Black, Queen's Gambit and London as White, and
+playing against the Scandinavian. The common moves replay, then you play your side to the end.
+
+**Cards from your games**:
 
 - **Opening repair**: positions from your first 12 moves that you keep reaching and getting
   wrong, weighted toward recent games.
 - **Don't hang it**: moments your move left material hanging. Find a safe move.
 - **Finish them**: your opponent blundered (or a mate was there) and you missed it.
 - **See the mate coming**: your move walked into a mating attack. Find the whole defence.
-- **Opening decks**: main lines of openings you actually play (Ruy Lopez for now), ordered by how
-  often you've faced each branch.
 
 Every line is steppable from move 1. Cards come back on a schedule (4 hours, 1 day, 3 days, a week…).
 Each card has an **Analyse** link (lichess analysis board) and an optional **Explain** button.
@@ -43,9 +50,10 @@ It is a static site: serve the folder (`python -m http.server`) or publish it wi
 | `app/main.js` | Setup screen, pipeline, settings. |
 | `app/engine.js` | Stockfish (WASM) in a Web Worker over UCI. |
 | `app/games.js` | chess.com / lichess / PGN loading. |
-| `app/analyze.js`, `app/mine.js`, `app/build.js` | Analysis → repeated mistakes → engine-checked cards. |
+| `app/analyze.js`, `app/mine.js`, `app/build.js` | Analysis → repeated mistakes → engine-checked cards (cached, so each new batch only checks new candidates). |
 | `app/sync.js`, `app/explain.js`, `app/store.js` | Gist sync, bring-your-own-key AI, IndexedDB. |
-| `data/repertoire.json` | Opening decks (engine-checked main lines). |
+| `data/repertoire.json` | Opening library (built by `tools/library/`). |
+| `tools/library/` | `lines.py` + `notes.py` → `check.py` (Stockfish) → `build.py` writes `data/repertoire.json`. |
 | `data/openings.tsv` | Opening names ([lichess chess-openings](https://github.com/lichess-org/chess-openings), CC0). |
 
 ## Licences
