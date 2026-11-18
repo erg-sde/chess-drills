@@ -111,7 +111,7 @@ function pill() {
   if (!el) {
     el = document.createElement("div"); el.id = "jobpill"; el.className = "jobpill";
     el.innerHTML = '<span id="jobtxt"></span><button class="hbtn" id="jobbtn"></button>';
-    document.querySelector("header .in").insertBefore(el, $("opensettings"));
+    $("hstat").appendChild(el); // second header row, under the title and buttons
     $("jobbtn").onclick = () => { job.paused = !job.paused; if (!job.paused && !job.running) runJob(); renderPill(); };
   }
   return el;
