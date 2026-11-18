@@ -1,7 +1,7 @@
 // Visitor counts with GoatCounter (privacy-friendly: no cookies, no personal data).
 // Uses GoatCounter's documented /count endpoint directly instead of loading its script, so the page
 // still runs no third-party code. Never sends usernames, games, keys or anything typed into the page.
-export const GOATCOUNTER = ""; // your site code: "CODE" from CODE.goatcounter.com (empty = off)
+export const GOATCOUNTER = "edmann13"; // dashboard: https://edmann13.goatcounter.com
 
 const off = () => !GOATCOUNTER || navigator.doNotTrack === "1" || window.doNotTrack === "1" ||
   ["localhost", "127.0.0.1", ""].includes(location.hostname);
