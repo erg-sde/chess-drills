@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' https://api.chess.com https://lichess.org https://api.github.com https://gist.githubusercontent.com https://api.anthropic.com https://openrouter.ai https://api.openai.com; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chess Drills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* VOICE: a coach's training notebook: direct, specific, no fluff.
+   IDEA: a tournament scoresheet + flash-card box: each card is a position from your own games.
+   PICTURE: the board, large, first thing on screen; the card's prompt and verdict sit beside it.
+   COLOUR and TYPE: white paper, ink black, one deep slate-blue field (board dark squares, header), signal yellow for move highlights, red/green verdicts. Archivo 800 + IBM Plex Sans/Mono.
+   LAYOUT: board left / panel right above 860px, stacked below; deck shelf and stats under. */
+:root{color-scheme:light dark;
+ --bg:light-dark(#ffffff,#121518);--ink:light-dark(#15181b,#e8eaec);--muted:light-dark(#5b636b,#9aa3ab);
+ --line:light-dark(#d9dde1,#2c3238);--panel:light-dark(#f4f6f8,#1a1f24);--field:light-dark(#2d4157,#22313f);--on-field:#f2f5f8;
+ --sq-l:#e6e0d0;--sq-d:#5f7a92;--hl:rgba(246,205,56,.6);--good:light-dark(#1f7a4d,#5fd39a);--bad:light-dark(#b8322a,#ff8a80);
+ --good-soft:light-dark(#e3f4ea,#173326);--bad-soft:light-dark(#fbe6e4,#3a1d1b);--accent:#f6cd38;
+ --f-d:"Archivo",system-ui,sans-serif;--f-b:"IBM Plex Sans",system-ui,sans-serif;--f-m:"IBM Plex Mono",ui-monospace,monospace;--f-p:"Noto Sans Symbols 2","Segoe UI Symbol","DejaVu Sans",serif}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-b);overflow-x:clip}
+button{font:inherit;cursor:pointer;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+header{background:var(--field);color:var(--on-field);padding:18px max(4vw,16px) 16px}
+header .in{max-width:1240px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;justify-content:space-between}
+h1{font:800 clamp(1.6rem,3.6vw,2.4rem)/1.05 var(--f-d);margin:0;text-wrap:balance}
+.sub{opacity:.85;font-size:.95rem}
+main{max-width:1240px;margin:0 auto;padding:20px max(4vw,16px) 56px}
+.study{display:grid;grid-template-columns:minmax(280px,560px) minmax(0,1fr);gap:28px;align-items:start}
+.bcol{display:grid;gap:10px}
+.bwrap{position:relative;aspect-ratio:1;width:100%;border:3px solid var(--ink);border-radius:4px;overflow:hidden;touch-action:manipulation}
+.board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;height:100%;user-select:none}
+.sq{position:relative;display:grid;place-items:center;overflow:hidden}
+.sq.l{background:var(--sq-l)}.sq.d{background:var(--sq-d)}
+.sq.hl::before,.sq.sel::before{content:"";position:absolute;inset:0;background:var(--hl)}
+.sq.sel::before{background:rgba(246,205,56,.85)}
+.sq.chk::before{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(220,40,30,.85),rgba(220,40,30,0) 70%)}
+.sq.dot::after{content:"";position:absolute;width:30%;height:30%;border-radius:50%;background:rgba(20,30,40,.35)}
+.sq.cap::after{content:"";position:absolute;inset:4%;border-radius:50%;border:5px solid rgba(20,30,40,.35)}
+.pc{position:absolute;inset:4%;width:92%;height:92%;pointer-events:none;user-select:none;-webkit-user-drag:none}
+.co{position:absolute;font:600 10px var(--f-m);opacity:.8;pointer-events:none}
+.co.f{right:3px;bottom:1px}.co.r{left:3px;top:1px}.sq.l .co{color:#5f7a92}.sq.d .co{color:#eee8d8}
+svg.arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.ctl{display:flex;gap:6px}.ctl button{flex:1 1 0;min-height:44px;border:1px solid var(--line);background:var(--panel);border-radius:6px;font-family:var(--f-m)}
+.ctl button:disabled{opacity:.4;cursor:default}
+.panel{display:grid;gap:14px}
+.card{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:var(--panel);display:grid;gap:8px}
+.card h2{font:800 1.35rem/1.15 var(--f-d);margin:0}
+.meta{font-size:.88rem;color:var(--muted)}
+.meta a{color:inherit}
+.prompt{font-weight:600}
+.verdict{border-radius:8px;padding:12px 14px;border:1px solid var(--line);background:var(--bg);min-height:3.2em}
+.verdict.good{border-color:var(--good);background:var(--good-soft)}.verdict.bad{border-color:var(--bad);background:var(--bad-soft)}
+.verdict .who{font:600 .82rem var(--f-m);color:var(--muted)}
+.verdict p{margin:2px 0 0}
+#result{display:grid;gap:6px}#result[hidden]{display:none}#result .who{font:800 1.02rem var(--f-d);color:inherit}#result .btn{justify-self:start;min-height:40px}
+#rslip:empty{display:none}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.btn{min-height:44px;padding:8px 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg)}
+.btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.btn:disabled{opacity:.45;cursor:default}
+a.btn{display:inline-flex;align-items:center;text-decoration:none;color:inherit}
+.moves{font:.9rem var(--f-m);display:flex;flex-wrap:wrap;gap:2px 4px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;max-height:180px;overflow:auto;background:var(--bg)}
+.num{color:var(--muted);padding:2px 0 2px 4px}
+.mv{border:0;background:transparent;padding:2px 5px;border-radius:4px;font:inherit}
+.mv.on{background:var(--field);color:var(--on-field)}.mv.key{text-decoration:underline;text-underline-offset:3px}
+.mv.fut{opacity:.35}
+.nb{color:var(--bad);font-weight:600}.ng{color:var(--good);font-weight:600}
+.mv.on .nb,.mv.on .ng{color:inherit}
+h3{font:800 1.15rem var(--f-d);margin:34px 0 10px}
+.decks{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.deck{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:6px;text-align:left;background:var(--bg)}
+.deck[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink)}
+.deck b{font:800 1.02rem var(--f-d)}.deck span{font-size:.88rem;color:var(--muted)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}.bar .k{background:var(--good)}.bar .s{background:var(--accent)}
+.counts{font:600 .82rem var(--f-m)}
+.why{max-width:70ch;color:var(--muted);margin:6px 0 0}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.fact{border-top:3px solid var(--field);padding-top:8px}
+.fact b{font:800 1.7rem/1.1 var(--f-d);display:block}.fact span{font-size:.9rem;color:var(--muted)}
+.list{display:grid;gap:6px;margin-top:10px}
+.li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;text-align:left;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--bg)}
+.li .t{font-weight:600}.li .s{font-size:.85rem;color:var(--muted)}
+.tag{font:600 .75rem var(--f-m);padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap;align-self:center}
+.tag.due{border-color:var(--bad);color:var(--bad)}.tag.k{border-color:var(--good);color:var(--good)}
+.status{font-size:.82rem;color:var(--muted)}
+.lbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:0 0 4px}
+.lbar input{flex:1 1 260px;min-height:44px;font:16px var(--f-b);padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+#more{margin-top:10px}
+h4{font:800 .98rem var(--f-d);margin:18px 0 8px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px 28px}
+.rows{display:grid;gap:6px}.r{display:grid;grid-template-columns:7.5em minmax(0,1fr) 6.5em;gap:10px;align-items:center;font-size:.9rem}
+.r .m{height:12px;border-radius:3px;background:var(--line);overflow:hidden}.r .m i{display:block;height:100%;background:var(--good)}
+.r .v{text-align:right;font:600 .82rem var(--f-m);white-space:nowrap}
+.ex{display:grid;gap:8px}.ex[hidden]{display:none}.ex input{min-height:44px;font:16px var(--f-b);padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.exout{white-space:pre-wrap;border-left:3px solid var(--field);padding:4px 0 4px 12px}.exout:empty{display:none}
+.err{color:var(--bad)}
+@media(max-width:860px){.study{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:no-preference){.verdict{transition:background .25s,border-color .25s}}
+[hidden]{display:none!important}
+.two{align-items:start}
+#hsub{order:1;margin-left:auto}
+.hbtn{order:2;margin-left:12px;min-height:40px;padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.5);background:transparent;color:var(--on-field)}
+.setup{max-width:760px;margin:0 auto;padding:28px max(4vw,16px) 56px;display:grid;gap:18px}
+.setup h2{font:800 1.5rem/1.15 var(--f-d);margin:0}.setup p{margin:0;max-width:65ch}
+.fld{display:grid;gap:6px}.fld label{font-weight:600}.fld .hint{font-size:.88rem;color:var(--muted)}
+.fld input,.fld select{min-height:44px;font:16px var(--f-b);padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted)}.drop.on{border-color:var(--ink);color:var(--ink)}
+.prog{display:grid;gap:8px}.pbar{height:12px;border-radius:6px;background:var(--line);overflow:hidden}.pbar i{display:block;height:100%;background:var(--field);width:0;transition:width .3s}
+.log{font:13px/1.5 var(--f-m);color:var(--muted);white-space:pre-wrap;max-height:160px;overflow:auto}
+dialog{border:1px solid var(--line);border-radius:12px;padding:0;max-width:640px;width:calc(100% - 24px);background:var(--bg);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:20px;display:grid;gap:16px}.dlg h2{font:800 1.3rem var(--f-d);margin:0}.dlg h3{margin:6px 0 0;font:800 1.02rem var(--f-d)}
+.ok{color:var(--good)}.warn{color:var(--bad)}
+</style>
+</head>
+<body>
+<header><div class="in"><h1>Drill your games</h1><button class="hbtn" id="opensettings" hidden>Settings</button><div class="sub" id="hsub" hidden>Positions and lines from your own chess.com games, on spaced repetition.</div></div></header>
+<section class="setup" id="setup" hidden></section>
+<dialog id="settings"></dialog>
+<main id="drillmain" hidden>
+ <div class="study">
+  <div class="bcol">
+   <div class="bwrap"><div class="board" id="board" aria-label="Chess board"></div><svg class="arrows" id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg></div>
+   <div class="ctl">
+    <button id="b0" title="Start (Home)" aria-label="Start">|◀</button><button id="b1" title="Back (←)" aria-label="Back">◀</button>
+    <button id="b2" title="Forward (→)" aria-label="Forward">▶</button><button id="b3" title="End (End)" aria-label="End">▶|</button>
+    <button id="bf" title="Flip (F)" aria-label="Flip board">Flip</button>
+   </div>
+   <div class="status">Green arrow: the move to learn. Red arrow: what you played in the game. Keys: ← → step, F flips.</div>
+  </div>
+  <div class="panel">
+   <div class="card" id="card">
+    <div class="meta" id="cmeta">Loading drills…</div>
+    <h2 id="ctitle"></h2>
+    <div class="prompt" id="cprompt"></div>
+    <div class="verdict" id="verdict" aria-live="polite"><p>Tap a piece, then tap where it goes.</p></div>
+    <div class="verdict" id="result" aria-live="polite" hidden><div class="who" id="rhead"></div><p id="rslip"></p><p id="rnote"></p><button class="btn" id="tokey">Show the key position</button></div>
+    <div class="row">
+     <button class="btn" id="hint">Hint</button>
+     <button class="btn" id="show">Show answer</button>
+     <button class="btn" id="retry" hidden>Retry card</button>
+     <button class="btn" id="rand" title="Practice a random card from this deck">Random card</button>
+     <a class="btn" id="analyse" target="_blank" rel="noopener" title="Open the position on the board in lichess's analysis board (Stockfish), to keep playing it">Analyse ↗</a>
+     <button class="btn" id="explain" hidden title="Ask Claude why the move works, for the position on the board">Explain</button>
+     <button class="btn pri" id="next" disabled>Next card</button>
+    </div>
+    <div class="ex" id="exbox" hidden>
+     <input id="exq" type="text" placeholder="Ask something specific (optional), e.g. why not ...Nf6?" aria-label="Question about this position">
+     <div class="row"><button class="btn pri" id="exgo">Ask</button><button class="btn" id="exstop" hidden>Stop</button></div>
+     <div class="exout" id="exout" aria-live="polite"></div>
+    </div>
+    <div class="moves" id="moves"></div>
+    <div class="status" id="status"></div>
+   </div>
+  </div>
+ </div>
+
+ <h3>Decks</h3>
+ <p class="why">Pick a deck, or all of them. Each session mixes your due cards with up to 10 new ones, in random order. Random card gives you a practice run on any card in the deck without touching its schedule. Get a card right first try and it comes back later (4 hours, 1 day, 3 days, a week, 2 weeks, a month, 3 months). Miss it and it comes back in 4 hours.</p>
+ <div class="decks" id="decks"></div>
+
+ <h3 id="lh">Cards in this deck</h3>
+ <p class="why">Open any card to study it: step through the game from move 1 to the key position, then on through the answer.</p>
+ <div class="lbar"><input id="q" type="search" placeholder="Search by code, opening or opponent (e.g. DEF-54365, Berlin, mpurkis)" aria-label="Search cards"><span class="status" id="lcount"></span></div>
+ <div class="list" id="list"></div>
+ <button class="btn" id="more" hidden></button>
+
+ <h3>Your progress</h3>
+ <div class="facts" id="pfacts"></div>
+ <div class="pgrid"><div><h4>First-try success by week</h4><div class="rows" id="pweeks"></div></div>
+ <div><h4>By deck</h4><div class="rows" id="pdecks"></div></div></div>
+ <h4>Most-missed cards</h4><div class="list" id="pmiss"></div>
+
+ <h3>What your games say</h3>
+ <div class="facts" id="facts"></div>
+ <p class="why" id="method"></p>
+</main>
+
+<script src="vendor/chess.js"></script>
+<script src="app/drill.js"></script>
+<script type="module" src="app/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+{
+ "decks": [
+  {
+   "id": "rep-ruy",
+   "name": "Ruy Lopez (White)",
+   "color": "white",
+   "blurb": "The main Ruy Lopez variations, most-faced first. The common moves replay, then you play White through the line.",
+   "lines": [
+    {
+     "name": "Morphy Defense: Closed main line",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3",
+     "branch": 5,
+     "notes": {
+      "5": "3...a6, the Morphy Defense: the most common reply.",
+      "6": "Keep the pin idea alive; Bxc6 is the Exchange Variation.",
+      "8": "Castle first. e4 is only 'hanging' for a moment: ...Nxe4 is the Open Ruy.",
+      "10": "Re1 protects e4 for good.",
+      "12": "Bb3 keeps the bishop on the a2-g8 diagonal, aiming at f7.",
+      "14": "c3 prepares d4 and gives the bishop a retreat on c2.",
+      "16": "h3 stops ...Bg4 pinning your f3 knight before you play d4."
+     }
+    },
+    {
+     "name": "Morphy Defense: early ...b5",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 b5 Bb3 Nf6 O-O Be7 Re1 d6 c3 O-O h3",
+     "branch": 7,
+     "notes": {
+      "7": "Black chases the bishop straight away.",
+      "8": "Bb3: the bishop is happiest here, eyeing f7.",
+      "10": "Same plan as the main line: castle, Re1, c3, h3, then d4."
+     }
+    },
+    {
+     "name": "Morphy Defense: Arkhangelsk (...b5, ...Bb7)",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O b5 Bb3 Bb7 Re1 Bc5 c3 d6 d4 Bb6",
+     "branch": 11,
+     "notes": {
+      "11": "Black puts the bishop on b7 to hit e4 and the long diagonal.",
+      "12": "Re1 guards e4 against the b7 bishop and the f6 knight.",
+      "14": "c3 then d4 hits the c5 bishop and takes the centre.",
+      "16": "d4: now ...exd4 cxd4 gives you a big centre."
+     }
+    },
+    {
+     "name": "Open Ruy (5...Nxe4)",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Nxe4 d4 b5 Bb3 d5 dxe5 Be6 c3 Bc5 Nbd2",
+     "branch": 9,
+     "notes": {
+      "9": "Black grabs e4. Don't panic: you get it back.",
+      "10": "d4! opens the e-file and hits e5 while Black's king is still in the centre.",
+      "12": "Bb3 out of the way of ...b5.",
+      "14": "dxe5: you've won the pawn back and gained space.",
+      "16": "c3 gives the bishop c2 and supports the centre.",
+      "18": "Nbd2 challenges the e4 knight."
+     }
+    },
+    {
+     "name": "Marshall Attack (8...d5 gambit)",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 O-O c3 d5 exd5 Nxd5 Nxe5 Nxe5 Rxe5 c6 d4 Bd6 Re1",
+     "branch": 15,
+     "notes": {
+      "15": "8...d5: the Marshall gambit. Black gives a pawn for an attack on your king.",
+      "16": "Accepting is fine. Taking the pawn is the main line.",
+      "18": "Nxe5 wins the pawn.",
+      "20": "Rxe5: you're a pawn up; expect ...Bd6 and ...Qh4 against your king.",
+      "22": "d4 frees your bishop on c1 to defend.",
+      "24": "Re1 retreats before ...Bxe5. Next, meet ...Qh4 with g3."
+     }
+    },
+    {
+     "name": "Modern Steinitz (4...d6)",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 d6 c3 Bd7 d4 Nf6 O-O Be7 Re1 O-O",
+     "branch": 7,
+     "notes": {
+      "7": "Black defends e5 with a pawn first.",
+      "8": "c3 and d4: build the classic centre.",
+      "10": "d4 hits e5.",
+      "12": "Castle, then Re1. You keep a comfortable space edge."
+     }
+    },
+    {
+     "name": "Exchange Variation (4.Bxc6)",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 a6 Bxc6 dxc6 O-O f6 d4 exd4 Nxd4 c5 Nb3 Qxd1 Rxd1",
+     "branch": 5,
+     "notes": {
+      "6": "4.Bxc6 swaps the bishop to damage Black's pawns. A solid alternative to 4.Ba4 (about equal).",
+      "8": "Castle. Don't take e5 yet: ...Qd4 would win it back.",
+      "10": "d4 opens the centre while Black's king is uncastled.",
+      "16": "After the queens come off, your 4-v-3 kingside majority is the long-term trump."
+     }
+    },
+    {
+     "name": "Berlin: 4...Nxe4 5.Re1 (the Rio Gambit trick)",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 Re1 Nf6 Nxe5 Nxe5 d4 c6 dxe5 Nd5 Bc4",
+     "branch": 5,
+     "notes": {
+      "5": "3...Nf6, the Berlin.",
+      "8": "5.Re1 with the e4 knight attacked.",
+      "10": "Nxe5 takes back the pawn.",
+      "12": "d4! (not Rxe5+, which you played twice). The e5 knight is pinned to the king on e8 by your rook, so it can't run.",
+      "14": "Collect the knight. You're a piece up (+2.2).",
+      "16": "Bc4 hits the d5 knight. Clean win of material."
+     }
+    },
+    {
+     "name": "Berlin: 5.d4 (the Berlin endgame)",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6 dxc6 dxe5 Nf5 Qxd8+ Kxd8 Nc3",
+     "branch": 7,
+     "notes": {
+      "8": "5.d4 is the main line: hit the centre right away.",
+      "10": "Bxc6 then dxe5: the knight on d6 has to move.",
+      "14": "Queens off. Black has the two bishops; you have the better pawns and Black's king can't castle.",
+      "16": "Nc3, then h3, Rd1 and Ne2-f4 or Bg5."
+     }
+    },
+    {
+     "name": "Berlin: 4...Bc5",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Bc5 Nxe5 Nxe5 d4 a6 Be2 Bxd4 Qxd4 d6 Nc3",
+     "branch": 7,
+     "notes": {
+      "7": "Black develops the bishop instead of taking e4.",
+      "8": "Nxe5! The fork trick: d4 is coming.",
+      "10": "d4 forks the bishop and the e5 knight. You win the piece back with a big centre.",
+      "16": "Nc3: about +1.2. You have the bishop pair and space."
+     }
+    },
+    {
+     "name": "Berlin: 4...a6",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O a6 Bxc6 dxc6 Nxe5 Nxe4 Re1",
+     "branch": 7,
+     "notes": {
+      "8": "Bxc6 removes the knight that guards e5...",
+      "10": "...then take the pawn (+0.9).",
+      "12": "Re1 hits the e4 knight. If 7...Nf6??, 8.Nxc6+ is a discovered check that wins the queen."
+     }
+    },
+    {
+     "name": "Steinitz Defense (3...d6)",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 d6 d4 Bd7 Nc3 Nf6 Bxc6 Bxc6 Qd3 exd4 Nxd4",
+     "branch": 5,
+     "notes": {
+      "5": "3...d6 is passive: it shuts in Black's bishop.",
+      "6": "d4 straight away.",
+      "10": "Bxc6 and Qd3 keep up the pressure: Black has to give up the centre with ...exd4.",
+      "14": "You have more space and easy development (+0.75)."
+     }
+    },
+    {
+     "name": "Classical 3...Bc5",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 Bc5 c3 Nf6 O-O O-O d4 Bb6 Re1",
+     "branch": 5,
+     "notes": {
+      "6": "c3 prepares d4 to hit the c5 bishop.",
+      "10": "d4 gains time on the bishop.",
+      "12": "Re1 holds e4. White is a little better."
+     }
+    },
+    {
+     "name": "Schliemann 3...f5",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 f5 d3 fxe4 dxe4 Nf6 O-O Bc5 Nc3 d6",
+     "branch": 5,
+     "notes": {
+      "5": "The Schliemann: an aggressive gambit.",
+      "6": "d3 is the calm answer: no theory battle.",
+      "8": "Recapture and castle. Black's kingside is loosened."
+     }
+    },
+    {
+     "name": "Bird 3...Nd4",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 Nd4 Nxd4 exd4 O-O c6 Bc4 Nf6 Re1 d6 c3",
+     "branch": 5,
+     "notes": {
+      "6": "Take the knight: the d4 pawn it leaves behind is a target.",
+      "8": "Castle; if ...c6, Bc4 keeps the bishop active.",
+      "14": "c3 attacks the d4 pawn."
+     }
+    },
+    {
+     "name": "Cozio 3...Nge7",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 Nge7 c3 a6 Ba4 d6 d4 Bd7 O-O",
+     "branch": 5,
+     "notes": {
+      "5": "The knight goes to e7, ready for ...g6 or ...Ng6.",
+      "6": "c3 then d4: same central plan as always.",
+      "10": "d4 hits e5."
+     }
+    },
+    {
+     "name": "3...Bd6 (odd bishop move)",
+     "moves": "e4 e5 Nf3 Nc6 Bb5 Bd6 O-O Nf6 d4",
+     "branch": 5,
+     "notes": {
+      "5": "3...Bd6 blocks Black's own d-pawn.",
+      "8": "d4: open the centre and punish the clumsy bishop (+1.4)."
+     }
+    }
+   ]
+  }
+ ]
+}
