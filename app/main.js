@@ -23,11 +23,34 @@ let job = { running: false, paused: false, total: 0, done: 0 };
 const sessionKey = { ai: null };
 
 // ---------------- persistence ----------------
+/** The first version saved one combined card set ({cards, decks, facts, subtitle...}, no "v").
+ *  Split it into cards from games + chosen opening decks + archive. Card ids are unchanged, so
+ *  progress carries over. */
+function fromV1(old, analysedCount = 0) {
+  if (!old || !Array.isArray(old.cards) || !old.cards.length) return null;
+  const isRep = (id) => id && id.startsWith("rep-");
+  const cards = old.cards.filter((c) => !isRep(c.deck) && c.deck !== "archive");
+  const archive = old.cards.filter((c) => c.deck === "archive");
+  const m = /last (\d+) games/.exec(old.subtitle || "");
+  return {
+    gameData: { cards, decks: (old.decks || []).filter((d) => !isRep(d.id) && d.id !== "archive"), archive,
+      facts: old.facts || [], rating: old.rating || null, games: analysedCount || (m ? +m[1] : 0) },
+    openings: [...new Set((old.decks || []).map((d) => d.id).filter(isRep))],
+  };
+}
 async function loadState() {
   const s = await store.get("settings");
   if (s) S = { ...S, ...s, players: { ...S.players, ...(s.players || {}) }, ai: { ...S.ai, ...(s.ai || {}) } };
   progress = (await store.get("progress")) || {};
   gameData = (await store.get("gameData")) || null; // {cards, decks, facts, rating, games, archive}
+  if (!gameData) { // cards built by the first version of the site
+    const v1 = fromV1(await store.get("decks"), ((await store.get("analysed")) || []).length);
+    if (v1) {
+      gameData = v1.gameData; await store.set("gameData", gameData);
+      if (!S.openings) S.openings = v1.openings;
+      S.started = true; await saveSettings();
+    }
+  }
 }
 const saveSettings = () => { const c = JSON.parse(JSON.stringify(S)); if (!S.ai.remember) c.ai.key = ""; return store.set("settings", c); };
 const aiCfg = () => ({ ...S.ai, key: S.ai.key || sessionKey.ai });
@@ -57,9 +80,12 @@ async function startSync() {
   try {
     S.sync.gistId = await syncer.connect(); await saveSettings();
     const remote = await syncer.pull();
-    if (remote.decks && remote.decks.v === 2) {
-      if (!gameData || (remote.decks.gameData && remote.decks.gameData.games > (gameData.games || 0))) { gameData = remote.decks.gameData; await store.set("gameData", gameData); }
-      if (!S.openings && remote.decks.openings) { S.openings = remote.decks.openings; await saveSettings(); }
+    const rd = remote.decks && (remote.decks.v === 2 ? remote.decks : fromV1(remote.decks)); // accept the first version's format too
+    if (rd) {
+      if (rd.gameData && (!gameData || rd.gameData.games > (gameData.games || 0))) { gameData = rd.gameData; await store.set("gameData", gameData); }
+      if (!S.openings && rd.openings) S.openings = rd.openings;
+      if (gameData || (S.openings && S.openings.length)) S.started = true;
+      await saveSettings();
     }
     progress = mergeProgress(progress, remote.progress); await store.set("progress", progress);
     return remote;
@@ -315,7 +341,10 @@ function openSettings(tab = "") {
     if (!syncer || !S.sync.gistId) { $("s-syncmsg").textContent = "That didn't work. Check the token's Gists permission."; return; }
     $("s-syncmsg").textContent = "Sync is on."; count("sync-on", { event: true });
     if (gameData || S.openings) { if (!r || !r.decks || r.decks.v !== 2) await pushDecks(); progress = await syncer.pushProgress(progress); await store.set("progress", progress); }
-    if (gameData || S.openings) { S.started = true; await saveSettings(); d.close(); await showDrills(); }
+    // Always let sync take you into the tool; with nothing to load yet, offer the opening picker.
+    const wasSetup = !$("setup").hidden;
+    S.started = true; await saveSettings(); d.close(); await showDrills();
+    if (wasSetup && !gameData && !(S.openings && S.openings.length)) openPicker(true);
   };
   if ($("s-unsync")) $("s-unsync").onclick = async () => { S.sync = null; syncer = null; await saveSettings(); d.close(); setStatus("Sync is off. Progress is saved in this browser."); };
   $("s-exp").onclick = async () => {
