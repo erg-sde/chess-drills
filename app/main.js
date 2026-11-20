@@ -225,9 +225,14 @@ async function addPending(games) {
   const analysed = (await store.get("analysed")) || [], pending = (await store.get("pending")) || [];
   const have = new Set([...analysed, ...pending].map((g) => g.url));
   const fresh = games.filter((g) => !have.has(g.url));
-  const all = [...pending, ...fresh].sort((a, b) => (a.end_time < b.end_time ? 1 : -1)).slice(0, Math.max(0, S.count - analysed.length));
-  await store.set("pending", all);
-  return fresh.length;
+  // Keep the newest S.count games in all, so new games push the oldest analysed ones out. (Capping
+  // only the queue meant that once S.count games were analysed, "Check for new games" added none.)
+  const newest = (a, b) => (a.end_time < b.end_time ? 1 : -1);
+  const keep = new Set([...analysed, ...pending, ...fresh].sort(newest).slice(0, S.count).map((g) => g.url));
+  const kept = analysed.filter((g) => keep.has(g.url));
+  if (kept.length < analysed.length) await store.set("analysed", kept); // their cards move to the archive, progress kept
+  await store.set("pending", [...pending, ...fresh].filter((g) => keep.has(g.url)).sort(newest));
+  return fresh.filter((g) => keep.has(g.url)).length;
 }
 async function fetchGames() {
   const errs = [], log = (t) => renderPill(t);
@@ -236,7 +241,7 @@ async function fetchGames() {
   if (S.players.lichess) got.push(...await fetchLichess(S.players.lichess, { max: S.count, onStatus: log }).catch((e) => { errs.push("lichess: " + e.message); return []; }));
   const n = await addPending(got);
   if (errs.length) toast(errs.join(" "));
-  return n;
+  return errs.length && !got.length ? null : n; // null: couldn't check, so don't say "no new games"
 }
 async function runJob({ fetch = false } = {}) {
   if (job.running) return;
@@ -245,7 +250,7 @@ async function runJob({ fetch = false } = {}) {
   const q = QUALITY[S.quality];
   try {
     renderPill("Downloading your games…");
-    if (fetch) await fetchGames();
+    if (fetch) job.added = await fetchGames();
     let analysed = (await store.get("analysed")) || [], pending = (await store.get("pending")) || [];
     job.total = analysed.length + pending.length; job.done = analysed.length; renderPill();
     const cache = (await store.get("checkCache")) || {};
@@ -265,6 +270,8 @@ async function runJob({ fetch = false } = {}) {
   job.running = false; renderPill();
   if (gameData) window.DrillApp.update(await compose());
   if (!job.paused && gameData) { count("cards-built", { event: true }); setStatus(`Done: ${gameData.cards.length} cards from your last ${gameData.games} games.`); pushDecks(); }
+  if (fetch && job.added === 0) setStatus("No new games since your last check.");
+  job.added = null;
 }
 async function rebuildCards(analysed, cache, q, final = false) {
   const before = new Set(gameData ? gameData.cards.map((c) => c.id) : []);
