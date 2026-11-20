@@ -7,6 +7,8 @@ While Stockfish 19 works through your recent games in the background, **10 at a 
 you pick openings to drill from the built-in library. Cards from your own games appear as each batch
 finishes (a pop-up tells you), so there's no loading screen to stare at. Close the tab and it carries
 on where it stopped next time.
+After that it looks for new games on its own every few hours while you use it (on any device that has
+analysed your games), and with sync on, the new cards reach your other devices through your gist.
 
 **Opening library** (every line engine-checked): Italian Game and Ruy Lopez as White, 1...e5 against
 the Italian as Black, Sicilian and Caro-Kann as Black, Queen's Gambit and London as White, and

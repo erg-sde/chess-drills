@@ -15,6 +15,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const QUALITY = { quick: { depth: 10, check: 12, label: "Quick" }, standard: { depth: 12, check: 14, label: "Standard" }, deep: { depth: 14, check: 16, label: "Deep" } };
 const BITE = 10; // games analysed per batch before cards are rebuilt
+const AUTO_EVERY = 3 * 3600e3; // look for new games on their own this often while the page is in use
 
 let S = { players: { chesscom: "", lichess: "", pgnNames: [] }, count: 100, quality: "standard", openings: null,
   ai: { provider: "anthropic", key: "", model: "", remember: true }, sync: null };
@@ -74,6 +75,13 @@ async function compose() {
 
 // ---------------- sync ----------------
 function setStatus(t) { try { window.DrillApp.setStatus(t); } catch (e) { /* page not up yet */ } }
+/** Is a's set of game cards newer than b's? By newest game seen; the game count only decides when
+ *  neither side records one (cards built before `newest` existed). With a full game window the
+ *  count stays the same as new games push old ones out, so it can't tell which side is newer. */
+function newerCards(a, b) {
+  if (a.newest || b.newest) return (a.newest || "") > (b.newest || "");
+  return (a.games || 0) > (b.games || 0);
+}
 async function startSync() {
   if (!S.sync || !S.sync.token) { syncer = null; return; }
   syncer = new GistSync(S.sync.token, S.sync.gistId);
@@ -82,7 +90,7 @@ async function startSync() {
     const remote = await syncer.pull();
     const rd = remote.decks && (remote.decks.v === 2 ? remote.decks : fromV1(remote.decks)); // accept the first version's format too
     if (rd) {
-      if (rd.gameData && (!gameData || rd.gameData.games > (gameData.games || 0))) { gameData = rd.gameData; await store.set("gameData", gameData); }
+      if (rd.gameData && (!gameData || newerCards(rd.gameData, gameData))) { gameData = rd.gameData; await store.set("gameData", gameData); }
       if (!S.openings && rd.openings) S.openings = rd.openings;
       if (gameData || (S.openings && S.openings.length)) S.started = true;
       await saveSettings();
@@ -100,6 +108,15 @@ function queuePush() {
   }, 4000);
 }
 const pushDecks = () => syncer && syncer.pushDecks({ v: 2, gameData, openings: S.openings }).catch(() => {});
+/** Check for new games without being asked, at most every AUTO_EVERY. Only on a device that has
+ *  analysed games itself: one that only synced its cards from the gist would rebuild from nothing. */
+async function autoCheck() {
+  if (job.running || job.paused || !(S.players.chesscom || S.players.lichess)) return;
+  if (Date.now() - (S.lastCheck || 0) < AUTO_EVERY) return;
+  if (!((await store.get("analysed")) || []).length) return;
+  runJob({ fetch: true, auto: true });
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") autoCheck(); });
 document.addEventListener("visibilitychange", async () => {
   if (document.visibilityState !== "visible" || !syncer || !decksData) return;
   try { const r = await syncer.pull(); progress = mergeProgress(progress, r.progress); await store.set("progress", progress); window.DrillApp.setProgress(progress); } catch (e) { /* offline */ }
@@ -241,9 +258,11 @@ async function fetchGames() {
   if (S.players.lichess) got.push(...await fetchLichess(S.players.lichess, { max: S.count, onStatus: log }).catch((e) => { errs.push("lichess: " + e.message); return []; }));
   const n = await addPending(got);
   if (errs.length) toast(errs.join(" "));
-  return errs.length && !got.length ? null : n; // null: couldn't check, so don't say "no new games"
+  if (errs.length && !got.length) return null; // couldn't check, so don't say "no new games"
+  S.lastCheck = Date.now(); await saveSettings();
+  return n;
 }
-async function runJob({ fetch = false } = {}) {
+async function runJob({ fetch = false, auto = false } = {}) {
   if (job.running) return;
   job.running = true; job.paused = false;
   engine = engine || new Engine();
@@ -252,6 +271,7 @@ async function runJob({ fetch = false } = {}) {
     renderPill("Downloading your games…");
     if (fetch) job.added = await fetchGames();
     let analysed = (await store.get("analysed")) || [], pending = (await store.get("pending")) || [];
+    if (auto && !pending.length) { job.running = false; job.added = null; renderPill(); return; } // nothing new: leave the cards be
     job.total = analysed.length + pending.length; job.done = analysed.length; renderPill();
     const cache = (await store.get("checkCache")) || {};
     while (pending.length && !job.paused) {
@@ -270,7 +290,7 @@ async function runJob({ fetch = false } = {}) {
   job.running = false; renderPill();
   if (gameData) window.DrillApp.update(await compose());
   if (!job.paused && gameData) { count("cards-built", { event: true }); setStatus(`Done: ${gameData.cards.length} cards from your last ${gameData.games} games.`); pushDecks(); }
-  if (fetch && job.added === 0) setStatus("No new games since your last check.");
+  if (fetch && !auto && job.added === 0) setStatus("No new games since your last check.");
   job.added = null;
 }
 async function rebuildCards(analysed, cache, q, final = false) {
@@ -286,7 +306,8 @@ async function rebuildCards(analysed, cache, q, final = false) {
   const archive = [...prevArch.filter((c) => !live.has(c.id)), ...dropped];
   const ratings = analysed.slice(-30).map((g) => g.my_rating).filter(Boolean).sort((a, b) => a - b);
   gameData = { cards: built.cards, decks: built.decks, archive, facts: facts(mined.stats), games: analysed.length,
-    rating: ratings.length ? ratings[Math.floor(ratings.length / 2)] : null };
+    rating: ratings.length ? ratings[Math.floor(ratings.length / 2)] : null,
+    newest: analysed.reduce((m, g) => (g.end_time > m ? g.end_time : m), "") };
   await store.set("gameData", gameData);
   window.DrillApp.update(await compose());
   const fresh = built.cards.filter((c) => !before.has(c.id));
@@ -388,5 +409,7 @@ function openSettings(tab = "") {
     await showDrills();
     const pending = (await store.get("pending")) || [];
     if (pending.length) runJob(); // resume where the last visit stopped
+    else autoCheck();
+    setInterval(autoCheck, 15 * 60e3); // a tab left open still picks up new games
   } else renderSetup();
 })();
